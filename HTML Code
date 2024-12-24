@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Procurement Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .phases {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .phase {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .phase.active {
+            background-color: #dbeafe;
+        }
+        .main-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        .status-badge {
+            background-color: #dbeafe;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        .alert {
+            background-color: #fef3c7;
+            border: 1px solid #fcd34d;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .public-records {
+            background-color: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #1d4ed8;
+        }
+        #newBidForm {
+            display: none;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-card">
+            <div class="header">
+                <h1>Government of The Gambia</h1>
+                <p>Transparent and AI-Powered Procurement System</p>
+            </div>
+
+            <div style="padding: 20px;">
+                <div class="phases">
+                    <div class="phase active">
+                        <h3>1. Bid Submission</h3>
+                        <p>Sealed digital bids and proposals</p>
+                    </div>
+                    <div class="phase">
+                        <h3>2. AI Evaluation</h3>
+                        <p>Automated scoring and ranking</p>
+                    </div>
+                    <div class="phase">
+                        <h3>3. Human Review</h3>
+                        <p>Final assessment and transparency</p>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Supplier</th>
+                            <th>Price</th>
+                            <th>Price Score</th>
+                            <th>Proposal Score (AI)</th>
+                            <th>Proposal Score (Human)</th>
+                            <th>Combined Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bidsTable">
+                        <!-- Table content will be populated by JavaScript -->
+                    </tbody>
+                </table>
+
+                <button class="button" onclick="toggleBidForm()">Submit New Bid</button>
+
+                <form id="newBidForm">
+                    <div class="form-group">
+                        <label for="supplier">Supplier Name:</label>
+                        <input type="text" id="supplier" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price ($):</label>
+                        <input type="number" id="price" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="proposal">Proposal:</label>
+                        <textarea id="proposal" rows="4" required></textarea>
+                    </div>
+                    <button type="submit" class="button">Submit Bid</button>
+                </form>
+
+                <div class="alert">
+                    ⚠️ Bid submission period is currently open. Deadline: 24 hours remaining
+                </div>
+
+                <div class="public-records">
+                    <h3>Public Records</h3>
+                    <button class="button" onclick="downloadExcelData()">Download Bid Data (Excel)</button>
+                    <button class="button" onclick="viewHistory()">View Evaluation History</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample initial data
+        let bids = [
+            { supplier: "Office Supplies Co", price: 25000, priceScore: 2, aiProposalScore: 8, humanProposalScore: null, status: "Under Review" },
+            { supplier: "Tech Solutions Ltd", price: 22000, priceScore: 3, aiProposalScore: 7, humanProposalScore: null, status: "Under Review" },
+            { supplier: "Global Distributors", price: 28000, priceScore: 1, aiProposalScore: 9, humanProposalScore: null, status: "Under Review" }
+        ];
+
+        const alpha = 0.5; // Weight for price scoring vs qualitative evaluation
+
+        // Function to calculate the combined score
+        function calculateCombinedScore(priceScore, aiProposalScore, humanProposalScore) {
+            const proposalScore = humanProposalScore !== null ? humanProposalScore : aiProposalScore;
+            return alpha * priceScore + (1 - alpha) * proposalScore;
+        }
+
+        // Function to update the table
+        function updateTable() {
+            const tbody = document.getElementById('bidsTable');
+            tbody.innerHTML = '';
+
+            bids.forEach(bid => {
+                const combinedScore = calculateCombinedScore(bid.priceScore, bid.aiProposalScore, bid.humanProposalScore);
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${bid.supplier}</td>
+                        <td>$${bid.price}</td>
+                        <td>${bid.priceScore}/10</td>
+                        <td>${bid.aiProposalScore !== null ? bid.aiProposalScore + '/10' : 'N/A'}</td>
+                        <td>${bid.humanProposalScore !== null ? bid.humanProposalScore + '/10' : 'Pending'}</td>
+                        <td>${combinedScore.toFixed(2)}</td>
+                        <td><span class="status-badge">${bid.status}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Function to toggle bid form
+        function toggleBidForm() {
+            const form = document.getElementById('newBidForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Function to handle form submission
+        document.getElementById('newBidForm').onsubmit = function(e) {
+            e.preventDefault();
+
+            const newBid = {
+                supplier: document.getElementById('supplier').value,
+                price: parseInt(document.getElementById('price').value),
+                priceScore: null, // Will be calculated after all bids are in
+                aiProposalScore: null, // Placeholder for LLM evaluation
+                humanProposalScore: null, // Placeholder for human evaluation
+                status: "Under Review"
+            };
+
+            bids.push(newBid);
+            updateTable();
+            toggleBidForm();
+            this.reset();
+        };
+
+        // Function to download data as Excel file
+        function downloadExcelData() {
+            const headers = ["Supplier", "Price", "Price Score", "Proposal Score (AI)", "Proposal Score (Human)", "Combined Score", "Status"];
+            const rows = bids.map(bid => [
+                bid.supplier,
+                bid.price,
+                bid.priceScore,
+                bid.aiProposalScore !== null ? bid.aiProposalScore : "N/A",
+                bid.humanProposalScore !== null ? bid.humanProposalScore : "Pending",
+                calculateCombinedScore(bid.priceScore, bid.aiProposalScore, bid.humanProposalScore).toFixed(2),
+                bid.status
+            ]);
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += headers.join(",") + "\n";
+            rows.forEach(row => {
+                csvContent += row.join(",") + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "bids_data.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Function to view history
+        function viewHistory() {
+            alert("Evaluation history feature coming soon!");
+        }
+
+        // Initialize table
+        updateTable();
+    </script>
+</body>
+</html>
